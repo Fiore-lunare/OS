@@ -1,0 +1,17 @@
+﻿  Test.cpp
+C:\Users\annabolshakova\source\Lab1\Test\Extern\Include\VectorLib.h(19,9): warning C4251: 'Vector::x_': 'Number' needs to have dll-interface to be used by clients of 'Vector'
+  (compiling source file 'Test.cpp')
+      C:\Users\annabolshakova\source\Lab1\Test\Extern\Include\NumberLib.h(3,7):
+      see declaration of 'Number'
+  
+C:\Users\annabolshakova\source\Lab1\Test\Extern\Include\VectorLib.h(20,9): warning C4251: 'Vector::y_': 'Number' needs to have dll-interface to be used by clients of 'Vector'
+  (compiling source file 'Test.cpp')
+      C:\Users\annabolshakova\source\Lab1\Test\Extern\Include\NumberLib.h(3,7):
+      see declaration of 'Number'
+  
+C:\Users\annabolshakova\source\Lab1\Test\Extern\Include\VectorLib.h(43,8): warning C4190: 'GetR' has C-linkage specified, but returns 'Number' which is incompatible with C
+  (compiling source file 'Test.cpp')
+      C:\Users\annabolshakova\source\Lab1\Test\Extern\Include\NumberLib.h(3,7):
+      see declaration of 'Number'
+  
+  Test.vcxproj -> C:\Users\annabolshakova\source\Lab1\Test\x64\Debug\Test.exe

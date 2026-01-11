@@ -1,0 +1,2 @@
+#define VECTORLIB_API __declspec(dllexport)
+#define VECTORLIB_API __declspec(dllimport)

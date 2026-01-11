@@ -1,0 +1,7 @@
+﻿  Source.cpp
+C:\Users\annabolshakova\source\Lab1\MatrixWindows\MatrixWindows\Source.cpp(11,13): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\annabolshakova\source\Lab1\MatrixWindows\MatrixWindows\Source.cpp(12,16): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\annabolshakova\source\Lab1\MatrixWindows\MatrixWindows\Source.cpp(13,15): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\annabolshakova\source\Lab1\MatrixWindows\MatrixWindows\Source.cpp(71,20): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\annabolshakova\source\Lab1\MatrixWindows\MatrixWindows\Source.cpp(140,17): warning C4267: '=': conversion from 'size_t' to 'int', possible loss of data
+  MatrixWindows.vcxproj -> C:\Users\annabolshakova\source\Lab1\MatrixWindows\x64\Debug\MatrixWindows.exe

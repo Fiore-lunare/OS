@@ -1,0 +1,3 @@
+﻿  user.cpp
+C:\Users\annabolshakova\source\Lab1\Lab4Process\User\user.cpp(204,32): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
+  User.vcxproj -> C:\Users\annabolshakova\source\Lab1\Lab4Process\x64\Debug\User.exe
