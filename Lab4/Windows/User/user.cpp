@@ -5,7 +5,12 @@
 #include <regex>
 #include <thread>
 #include <chrono>
+#include <unordered_set>
 
+std::wstring ToLower(std::wstring str) {
+    for (auto& c : str) c = towlower(c);
+    return str;
+}
 
 bool checkName(std::string& str) {
     std::regex pattern("([^\\>\\<\\:\\\"\\/\\\\\\|\\?\\*]+\\|)*([^\\>\\<\\:\\\"\\/\\\\\\|\\?\\*])+");
@@ -17,45 +22,48 @@ bool checkPrId(std::string& str) {
     return std::regex_match(str, pattern) || str == "";
 }
 
+bool checkPrExName(std::vector<std::pair<DWORD, std::string>>& vec, const std::vector <std::string>& namesToSearch) {
+    if (namesToSearch.empty()) return 0;
+    std::unordered_set<std::wstring> targets;
+    for (const auto& name : namesToSearch) {
+        std::wstring wName(name.begin(), name.end());
+        targets.insert(ToLower(wName));
+    }
 
-bool checkPrExName(std::string& str, std::vector<std::pair<DWORD, std::string>>& vec) {
     HANDLE hSnapShot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, NULL);
     PROCESSENTRY32 pEntry;
     pEntry.dwSize = sizeof(pEntry);
     BOOL pRes = Process32First(hSnapShot, &pEntry);
 
     while (pRes) {
-        const size_t size = strlen(str.c_str()) + 1;
-        wchar_t* temp = new wchar_t[size];
-        size_t outSize;
-        errno_t err = mbstowcs_s(&outSize, temp, size, str.c_str(), size - 1);
+        std::wstring currentProc = ToLower(pEntry.szExeFile);
 
-        if (err != 0) {
-            std::wcerr << L"Error converting string: " << str.c_str() << std::endl;
-            delete[] temp;
-            continue;
-        }
 
-        if (_wcsicmp(pEntry.szExeFile, temp) == 0) {
-            vec.push_back(std::make_pair(pEntry.th32ProcessID, str));
-            return 1;
+        if (targets.count(currentProc)) {
+            std::string procName(currentProc.begin(), currentProc.end());
+            vec.push_back(std::make_pair(pEntry.th32ProcessID, procName));
+            std::cout << "process with Name = " << procName << " exists" << std::endl;
+            targets.erase(currentProc);
         }
-        delete[] temp;
         pRes = Process32Next(hSnapShot, &pEntry);
     }
+    for (const auto& target : targets) {
+        std::string procName(target.begin(), target.end());
+        std::cout << "process with Name = " << procName << " doesn't initially exist" << std::endl;
+    }
+    CloseHandle(hSnapShot);
     return 0;
 }
-
 
 bool byId(DWORD processId) {
     HANDLE processHandle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, processId);
     if (processHandle == NULL) return 0;
     DWORD exitCode;
-    
+
     BOOL result = GetExitCodeProcess(processHandle, &exitCode);
     bool isRunning = (result && exitCode == STILL_ACTIVE);
     CloseHandle(processHandle);
-    
+
     return isRunning;
 }
 
@@ -71,15 +79,16 @@ bool checkPrExId(std::string& str, std::vector<DWORD>& vec) {
 std::string parseAndCheckId(std::string& str, std::vector<DWORD>& vec) {
     std::stringstream ss(str);
     std::string curWord;
-    
+
 
     std::string res = "";
     while (std::getline(ss, curWord, '|')) {
         if (checkPrExId(curWord, vec)) {
-            std::cout << "process with ID = " << curWord << " exists"<<std::endl;
-            res += "--id " + curWord + " ";
+            std::cout << "process with ID = " << curWord << " exists" << std::endl;
         }
-        else std::cout << "process with ID = " << curWord << " doesn't exist"<<std::endl;
+        else std::cout << "process with ID = " << curWord << " doesn't initially exist" << std::endl;
+        res += "--id " + curWord + " ";
+
     }
     return res;
 }
@@ -94,23 +103,20 @@ int createCommandId(std::string& str) {
     return 0;
 }
 
-std::string parseAndCheckName(std::string& str, std::vector < std::pair < DWORD, std::string>>& vec) {
+std::string parseName(std::string& str, std::vector <std::string>& vec) {
 
     std::stringstream ss(str);
     std::string curWord;
     std::string res = "";
     while (std::getline(ss, curWord, '|')) {
-        if (checkPrExName(curWord, vec)) {
-            std::cout << "process with Name = " << curWord << " exists"<<std::endl;
-            res += "--name \"" + curWord + "\" ";
-        }
-        else std::cout << "process with name = " << curWord << " doesn't exist"<<std::endl;
+        res += "--name \"" + curWord + "\" ";
+        vec.push_back(curWord);
     }
     return res;
 }
 
 int createCommandName(std::string& str) {
-    std::cout << "\n-------Enter process name to kill-------"<<std::endl;
+    std::cout << "\n-------Enter process name to kill-------" << std::endl;
     std::getline(std::cin, str);
     if (!checkName(str)) {
         std::cout << "Incorrect input" << std::endl;
@@ -120,8 +126,7 @@ int createCommandName(std::string& str) {
 }
 
 bool setEnvVar(std::string& envVar) {
-
-    std::cout << "Enter PROC_TO_KILL"<<std::endl;
+    std::cout << "Enter Env Var PROC_TO_KILL:" << std::endl;
     std::getline(std::cin, envVar);
 
     if (!checkName(envVar)) {
@@ -129,12 +134,10 @@ bool setEnvVar(std::string& envVar) {
         return 1;
     }
 
-
     BOOL bEv = SetEnvironmentVariableA("PROC_TO_KILL", (LPSTR)envVar.c_str());
-
     if (!bEv)
     {
-        std::cout << "Unable to Set Environment VariableA" << std::endl;
+        std::cout << "Unable to Set Environment Variable PROC_TO_KILL" << std::endl;
         std::cout << "Press any Key to quit: " << std::endl;
         return 1;
     }
@@ -145,50 +148,57 @@ bool setEnvVar(std::string& envVar) {
 void showAfterKill(std::vector < std::pair < DWORD, std::string>>& vecForName, std::vector<DWORD>& vecForId) {
     for (auto elem : vecForName) {
         bool res = byId(elem.first);
-        if (res) std::cout << "process with Name = " << elem.second << " exists"<<std::endl;
-        else std::cout << "process with name = " << elem.second << " doesn't exist"<<std::endl;
+        if (res) std::cout << "process with Name = " << elem.second << " exists" << std::endl;
+        else std::cout << "process with name = " << elem.second << " doesn't exist" << std::endl;
     }
 
     for (auto elem : vecForId) {
         bool res = byId(elem);
         if (res) std::cout << "process with ID = " << elem << " exists" << std::endl;
-        else std::cout << "process with ID = " << elem << " doesn't exist"<<std::endl;
+        else std::cout << "process with ID = " << elem << " doesn't exist" << std::endl;
     }
 }
 
 
 int main() {
+    std::cout << "### Before Killer" << std::endl;
     std::string name = "", id = "", envVar = "";
-    std::vector < std::pair < DWORD, std::string>> vecForName ;
+    std::vector <std::pair<DWORD, std::string>> vecForName;
     std::vector<DWORD> vecForId;
-    
+    std::vector<std::string> names;
+
+
     if (setEnvVar(envVar)) return 1;
-    envVar = parseAndCheckName(envVar, vecForName);
+    envVar = parseName(envVar, names);
+
+    if (createCommandName(name)) return 1;
+    name = parseName(name, names);
+
     if (createCommandId(id)) return 1;
     id = parseAndCheckId(id, vecForId);
-    if (createCommandName(name)) return 1;
-    name = parseAndCheckName(name, vecForName);
+
+    checkPrExName(vecForName, names);
 
     std::string commandLine = "killer.exe " + id + " " + name;
-
 
     SECURITY_ATTRIBUTES saChProcess = { sizeof(SECURITY_ATTRIBUTES),NULL,FALSE };
     SECURITY_ATTRIBUTES saChPrimaryThread = { sizeof(SECURITY_ATTRIBUTES),NULL,FALSE };
 
-    DWORD dwFlags = CREATE_NEW_CONSOLE | BELOW_NORMAL_PRIORITY_CLASS; 
+    DWORD dwFlags = BELOW_NORMAL_PRIORITY_CLASS;
 
+    std::cout << "\n\n### Killer Ouput:" << std::endl;
 
-    PROCESS_INFORMATION pi; 
+    PROCESS_INFORMATION pi;
     STARTUPINFOA si = { sizeof(STARTUPINFOA) };
 
     BOOL fSuccess = CreateProcessA(
-        NULL,  
+        NULL,
         (LPSTR)commandLine.c_str(),
-        NULL, 
+        NULL,
         NULL,
         TRUE,
         dwFlags,
-        NULL, 
+        NULL,
         NULL,
         &si,
         &pi);
@@ -200,11 +210,11 @@ int main() {
         return 1;
     }
     DWORD dwWait = WaitForSingleObject(pi.hProcess, INFINITE);
-    
-    if (dwWait == WAIT_TIMEOUT | dwWait == WAIT_FAILED) 
+
+    if (dwWait == WAIT_TIMEOUT | dwWait == WAIT_FAILED)
     {
-        std::cout<<"User process terminates (kills) Killer process as it is not completed in the timeout.\n";
-        std::cout<<"\nPress the Key Enter for terminating Child:\n";
+        std::cout << "User process terminates (kills) Killer process as it is not completed in the timeout.\n";
+        std::cout << "\nPress the Key Enter for terminating Child:\n";
         int retParent = 2;
         TerminateProcess(pi.hProcess, retParent);
     }
@@ -212,6 +222,7 @@ int main() {
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
 
-    showAfterKill(vecForName, vecForId);
+    std::cout << "\n\n### After Killer" << std::endl;
 
+    showAfterKill(vecForName, vecForId);
 }
